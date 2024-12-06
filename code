@@ -1,0 +1,157 @@
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.serialization import (
+    load_pem_private_key,
+    load_pem_public_key,
+    Encoding,
+    PrivateFormat,
+    NoEncryption,
+    PublicFormat,
+)
+import os
+
+def generate_keys():
+    """build Key Pair and show status"""
+    try:
+        print("=== build Key Pair ===")
+        print("step 1: building Private Key...")
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        print("✔️ success to build Private Key !")
+
+        print("step 2: building Public Key...")
+        public_key = private_key.public_key()
+        print("✔️ success to build Public Key!")
+
+        print("step 3: save Private Key to pem 'private_key.pem'...")
+        with open("private_key.pem", "wb") as private_file:
+            private_file.write(private_key.private_bytes(
+                encoding=Encoding.PEM,
+                format=PrivateFormat.PKCS8,
+                encryption_algorithm=NoEncryption()
+            ))
+        print("✔️ success to build Private Key !")
+
+        print("step 4: save Public Key to pem 'public_key.pem'...")
+        with open("public_key.pem", "wb") as public_file:
+            public_file.write(public_key.public_bytes(
+                encoding=Encoding.PEM,
+                format=PublicFormat.SubjectPublicKeyInfo
+            ))
+        print("✔️ success to save Public Key !")
+        print("=== done Key Pair ===")
+    except Exception as e:
+        print(f"❌ Key Pair error: {e}")
+
+def sign_message():
+    """ sing and output at Terminal"""
+    try:
+        print("\n=== start to sign ===")
+        file_path = input("📄 make file (.txt) to sign : ")
+        if not os.path.exists(file_path):
+            print(f"❌ file '{file_path}' not found!")
+            return
+
+        print(f"step 1: reading from file '{file_path}'...")
+        with open(file_path, "r") as file:
+            message = file.read().encode()
+        print("✔️ success to read !")
+
+        print("step 2: loading Private Key from file 'private_key.pem'...")
+        if not os.path.exists("private_key.pem"):
+            print("❌ Private Key cannot find ! let's build Key Pair.")
+            return
+        with open("private_key.pem", "rb") as private_file:
+            private_key = load_pem_private_key(private_file.read(), password=None)
+        print("✔️ Success to download Private Key!")
+
+        print("step 3: signing...")
+        signature = private_key.sign(
+            message,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        print("✔️ Sign success!")
+
+        print("step 4: save sign 'signature.sig'...")
+        with open("signature.sig", "wb") as signature_file:
+            signature_file.write(signature)
+        print("✔️ Success to save!")
+        print("=== sign done ===")
+    except Exception as e:
+        print(f"❌ sign error: {e}")
+
+def verify_signature():
+    """Check sign and output"""
+    try:
+        print("\n=== start to check ===")
+        file_path = input("📄 file text name (.txt) to check: ")
+        signature_path = input("🔑 sign name (.sig): ")
+
+        if not os.path.exists(file_path):
+            print(f"❌ file text name '{file_path}' not found!")
+            return
+        if not os.path.exists(signature_path):
+            print(f"❌ sign name '{signature_path}' not found!")
+            return
+
+        print(f"step 1: reading text from file '{file_path}'...")
+        with open(file_path, "r") as file:
+            message = file.read().encode()
+        print("✔️ Success!")
+
+        print(f"step 2: reading sign from file '{signature_path}'...")
+        with open(signature_path, "rb") as signature_file:
+            signature = signature_file.read()
+        print("✔️ Success!")
+
+        print("step 3: loading Public Key from file 'public_key.pem'...")
+        if not os.path.exists("public_key.pem"):
+            print("❌ Public Key not found! Let's build Key Pair.")
+            return
+        with open("public_key.pem", "rb") as public_file:
+            public_key = load_pem_public_key(public_file.read())
+        print("✔️ Downloaded Public Key !")
+
+        print("step 4: sign checking ...")
+        public_key.verify(
+            signature,
+            message,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        print("✔️ sign correct!")
+        print("=== finished to check sign ===")
+    except Exception as e:
+        print(f"❌ Error or uncorrected: {e}")
+
+def main():
+    """main menu"""
+    while True:
+        print("\n=== menu Digital Signature ===")
+        print("1. build Key Pair")
+        print("2. sign")
+        print("3. check sign")
+        print("0. exit")
+
+        choice = input("Please select (0-3): ")
+
+        if choice == "1":
+            generate_keys()
+        elif choice == "2":
+            sign_message()
+        elif choice == "3":
+            verify_signature()
+        elif choice == "0":
+            print("👋 Thank you! bye.")
+            break
+        else:
+            print("❌ select wrong please try new.")
+
+if __name__ == "__main__":
+    main()
